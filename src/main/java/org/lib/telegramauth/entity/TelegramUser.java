@@ -11,7 +11,7 @@ import lombok.Setter;
 public class TelegramUser {
 
     @Id
-    private String id;
+    private Long idTelegramUser;
     private String username;
     private String firstName;
     private String lastName;

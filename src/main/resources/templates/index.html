@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Telegram WebApp Auth</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<h2>Авторизация через Telegram WebApp</h2>
+<div id="status">⏳ Проверка...</div>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const initData = Telegram.WebApp.initData;
+
+        if (!initData || initData === "") {
+            document.getElementById("status").innerText = "Нет initData от Telegram";
+            return;
+        }
+
+        fetch('/auth/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ initData })
+        })
+            .then(response => {
+                if (!response.ok) throw new Error("Ошибка сервера");
+                return response.text();
+            })
+            .then(html => {
+                document.open();
+                document.write(html);
+                document.close();
+            })
+            .catch(error => {
+                document.getElementById("status").innerText = "Ошибка: " + error.message;
+            });
+    });
+</script>
+</body>
+</html>
