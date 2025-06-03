@@ -6,6 +6,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
@@ -22,7 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/auth/telegram")
-    public String loginWithTelegram(@RequestParam("initData") String initData, Model model) {
+    public String loginWithTelegram(@RequestBody String initData, Model model) {
         if(!authService.isValid(initData)) {
             model.addAttribute("error", "Неправильная подпись Телеграм");
             return "error";
