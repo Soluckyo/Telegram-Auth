@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,20 +32,22 @@ public class AuthService implements IAuthService {
      * @return true если значение правильное, false если неправильное
      */
     public boolean isValid(String initData) {
-        Map<String, String> dataMap = parseInitData(initData);
 
+        Map<String, String> dataMap = parseInitData(initData);
         String hash = dataMap.remove("hash");
-        dataMap.remove("signature");
+//        dataMap.remove("signature");
         if(hash == null) {
             return false;
         }
 
         String dataCheckString = buildDataInitCheckString(dataMap);
-        String calculatedHash = calculateHash(dataCheckString);
+        byte[] calculatedKey = calculateKey();
+        String calculatedHash = bytesToHex(calculateHash(calculatedKey, dataCheckString));
 
         log.info("initData: " + initData);
+        log.info("dataCheckString: " + dataCheckString);
         log.info("Calculated hash: " + calculatedHash);
-        log.info("Hash: " + hash);
+        log.info("Telegram Hash: " + hash);
 
         return calculatedHash.equalsIgnoreCase(hash);
     }
@@ -56,7 +58,7 @@ public class AuthService implements IAuthService {
      * @return Коллекцию с ключ-значениями, которые находились в InitData
      */
     public Map<String, String> parseInitData(String initData) {
-        Map<String, String> result = new HashMap<>();
+        Map<String, String> result = new TreeMap<>();
         String[] data = initData.split("&");
 
         for (String s : data) {
@@ -105,20 +107,33 @@ public class AuthService implements IAuthService {
     }
 
 
-    private String calculateHash(String data) {
+    /**
+     * Вычисляет ключ, необходимый для вычисления хэша
+     * @return строку содержащую ключ(HmacSha256(tokenBot, WebAppData))
+     */
+    private byte[] calculateKey() {
         try {
-            String secretkey = "WebAppData" + tokenBot;
-            byte[] key = MessageDigest.getInstance("SHA-256")
-                    .digest(secretkey.getBytes(StandardCharsets.UTF_8));
+            String keyString = "WebAppData";
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(keyString.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return mac.doFinal(tokenBot.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException("Не удалось вычислить ключ", e);
+        }
+    }
 
+    /**
+     * Вычисляет хэш по строке с данными используя ключ вычисляемый в calculateKey
+     * @param key ключ, из захэшированного токена бота с помощью HmacSHA256 и ключа в виде строки "WebAppData"
+     * @return строку хэш
+     */
+    private byte[] calculateHash(byte[] key, String data) {
+        try{
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(key, "HmacSHA256"));
-
-            byte[] hmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hmac);
-
+            return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            throw new RuntimeException("Не удалось вычислить хэш", e);
+            throw new RuntimeException("Не удалось вычислить хэш" + e);
         }
     }
 
