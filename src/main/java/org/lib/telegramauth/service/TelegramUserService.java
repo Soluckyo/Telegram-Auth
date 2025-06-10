@@ -14,13 +14,17 @@ public class TelegramUserService implements ITelegramUserService {
     }
 
 
-    public TelegramUser savedTelegramUser(Long id, String username, String firstname, String lastname) {
-        TelegramUser user = telegramUserRepository.findById(id).orElse(new TelegramUser());
+    public TelegramUser savedTelegramUser(TelegramUser savedUser) {
+        TelegramUser user = telegramUserRepository.findById(savedUser.getIdTelegramUser()).orElse(
+                TelegramUser.builder()
+                        .idTelegramUser(savedUser.getIdTelegramUser()).build());
 
-        user.setIdTelegramUser(id);
-        user.setUsername(username);
-        user.setFirstName(firstname);
-        user.setLastName(lastname);
+                user.setUsername(savedUser.getUsername());
+                user.setFirstName(savedUser.getFirstName());
+                user.setLastName(savedUser.getLastName());
+                user.setLanguageCode(savedUser.getLanguageCode());
+                user.setAllowsWriteToPm(savedUser.isAllowsWriteToPm());
+                user.setPhotoUrl(savedUser.getPhotoUrl());
 
         return telegramUserRepository.save(user);    }
 }

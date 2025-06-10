@@ -3,12 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <title>Доброго времени суток, Телеграм-пользователь</title>
+    <style>
+        body {
+            background-color: white;
+            color: black;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #121212 !important;
+                color: #e0e0e0 !important;
+            }
+        }
+    </style>
 </head>
 <body>
+<img th:if="${user.photoUrl != null and user.photoUrl != ''}" th:src="${user.photoUrl}" alt="User Photo" style="max-width: 200px; border-radius: 10px;" />
 <h1>Привет, <span th:text="${user.username}">Username</span>!</h1>
-<h4>ID: <span th:text="${user.idTelegramUser}">Id</span>!</h4>
-<h4>Firstname: <span th:text="${user.firstname}">Firstname</span>!</h4>
-<h4>Lastname: <span th:text="${user.lastname}">Lastname</span>!</h4>
+<h4>ID: <span th:text="${user.idTelegramUser}">Id</span></h4>
+
+<h4 th:if="${user.firstName != null and user.firstName != ''}">
+    Имя: <span th:text="${user.firstName}">Firstname</span></h4>
+
+<h4 th:if="${user.lastName != null and user.lastName != ''}">
+    Фамилия: <span th:text="${user.lastName}">Lastname</span>
+</h4>
+
 
 </body>
 </html>

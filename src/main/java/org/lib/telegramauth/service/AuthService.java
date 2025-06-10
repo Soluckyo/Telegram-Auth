@@ -1,5 +1,7 @@
 package org.lib.telegramauth.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.lib.telegramauth.entity.TelegramUser;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,11 +9,10 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -34,11 +35,8 @@ public class AuthService implements IAuthService {
     public boolean isValid(String initData) {
 
         Map<String, String> dataMap = parseInitData(initData);
-        String hash = dataMap.remove("hash");
+        String hash = dataMap.remove("hash").replaceAll("[\"}]", "").trim();
 //        dataMap.remove("signature");
-        if(hash == null) {
-            return false;
-        }
 
         String dataCheckString = buildDataInitCheckString(dataMap);
         byte[] calculatedKey = calculateKey();
@@ -58,31 +56,39 @@ public class AuthService implements IAuthService {
      * @return Коллекцию с ключ-значениями, которые находились в InitData
      */
     public Map<String, String> parseInitData(String initData) {
-        Map<String, String> result = new TreeMap<>();
-        String[] data = initData.split("&");
+        Map<String, String> params = new TreeMap<>();
 
-        for (String s : data) {
-            int idx = s.indexOf('=');
-            if (idx > 0) {
-                String key = s.substring(0, idx);
-                String value = s.substring(idx + 1);
-                result.put(key, value);
+        for (String pair : initData.split("&")) {
+            String[] keyValue = pair.split("=", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0];
+                String value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
+                if (key.startsWith("{\"initData\":\"user")) {
+                    key = "user";
+                }
+                params.put(key, value);
             }
         }
-        return result;
+        return params;
     }
 
     @Override
     public TelegramUser extractUser(String initData) {
         log.info("extractUser");
         Map<String, String> data = parseInitData(initData);
+        String userParse = data.get("user");
 
-        Long id = Long.parseLong(data.get("id"));
-        String username = data.getOrDefault("username", null);
-        String firstname = data.getOrDefault("firstname", null);
-        String lastname = data.getOrDefault("lastname", null);
+        log.info("user: " + userParse);
 
-        return userService.savedTelegramUser(id, username, firstname, lastname);    }
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            TelegramUser user = objectMapper.readValue(userParse, TelegramUser.class);
+            log.info("user parsed: " + user);
+            return userService.savedTelegramUser(user);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Неудалось распарсить user из JSON: " + userParse, e);
+        }
+    }
 
     @Override
     public boolean isExpired(String initData, int i) {
@@ -95,15 +101,11 @@ public class AuthService implements IAuthService {
      * @return строку, с ключ-значениями отсортированными по алфавитному порядку(как требует того Телеграмм)
      */
     private String buildDataInitCheckString(Map<String, String> dataMap) {
-        log.info("dataMap: " + dataMap.toString());
-
-        String dataCheckString = dataMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .collect(Collectors.joining("\n"));
-
-        log.info("DataCheckString:\n" + dataCheckString); // Для отладки
-        return dataCheckString;
+        StringBuilder sb = new StringBuilder();
+        dataMap.forEach((key, value) ->
+                sb.append(key).append("=").append(value).append("\n")
+        );
+        return sb.toString().trim();
     }
 
 
